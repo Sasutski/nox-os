@@ -6,6 +6,10 @@
 /* Color: white on black */
 #define COLOR 0x0F
 
+/* Function prototypes - declare these before using them */
+void update_cursor();
+void outb(unsigned short port, unsigned char value);
+
 /* Current cursor position */
 int cursor_x = 0;
 int cursor_y = 0;
@@ -27,6 +31,7 @@ void clear_screen() {
     }
     cursor_x = 0;
     cursor_y = 0;
+    update_cursor();  // Update the hardware cursor
 }
 
 /* Function to print a string at specific position */
@@ -53,6 +58,9 @@ void print_char(char c) {
             cursor_y++;
         }
     }
+    
+    // Update the hardware cursor position
+    update_cursor();
 }
 
 /* Print a string at the current cursor position */
@@ -62,6 +70,22 @@ void print(const char *str) {
         print_char(str[i]);
         i++;
     }
+}
+
+/* Update the hardware cursor position to match our software cursor */
+void update_cursor() {
+    unsigned short position = (cursor_y * 80) + cursor_x;
+    
+    // Tell the VGA hardware the position
+    outb(0x3D4, 0x0F);  // Low byte register
+    outb(0x3D5, (unsigned char)(position & 0xFF));
+    outb(0x3D4, 0x0E);  // High byte register
+    outb(0x3D5, (unsigned char)((position >> 8) & 0xFF));
+}
+
+/* Write a byte to an I/O port */
+void outb(unsigned short port, unsigned char value) {
+    __asm__ volatile("outb %0, %1" : : "a"(value), "dN"(port));
 }
 
 void kernel_main() {
