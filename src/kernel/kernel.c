@@ -93,7 +93,7 @@ void kernel_main() {
     clear_screen();
     
     // Display a welcome message
-    print_string("Welcome to NOX OS!", 1, 1);
+    print("Welcome to NOX OS!");
     
     // Set cursor to a position for keyboard input testing
     cursor_x = 0;
