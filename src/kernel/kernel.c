@@ -48,6 +48,23 @@ void print_char(char c) {
     if (c == '\n') {
         cursor_x = 0;
         cursor_y++;
+    } else if (c == '\b') {
+        // Handle backspace
+        // First check if we're in a user-editable area (below line 14 or at line 15+)
+        if (cursor_y > 14 || (cursor_y == 14 && cursor_x > 0)) {
+            if (cursor_x > 0) {
+                // Move cursor back one position
+                cursor_x--;
+                
+                // Erase the character (replace with space)
+                putchar(' ', cursor_x, cursor_y);
+            } else if (cursor_y > 15) {  // Only allow line wrapping within user input area
+                // If at beginning of line and not first input line, go to end of previous line
+                cursor_y--;
+                cursor_x = 79;  // Last position on previous line
+                putchar(' ', cursor_x, cursor_y);
+            }
+        }
     } else {
         putchar(c, cursor_x, cursor_y);
         cursor_x++;
@@ -107,13 +124,15 @@ void kernel_main() {
         
         // If a key was pressed, display it
         if (key != 0) {
-            // Show the character itself if printable
-            if (key >= 32 && key <= 126) {
+            // Process backspace specially
+            if (key == '\b') {
+                print_char('\b');
+            }
+            // Show printable characters as is
+            else if (key >= 32 && key <= 126) {
                 print_char(key);
-                // Remove this line to eliminate spaces between characters
-                // print_char(' ');
             } 
-            // Show special keys as hex values
+            // Show other special keys as hex values
             else {
                 char hex[6];
                 hex[0] = '0';
