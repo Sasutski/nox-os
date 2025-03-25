@@ -33,6 +33,13 @@ void print_string(const char *str, int x, int y) {
 
 
 void kernel_main() {
+    // Clear the screen first
+    clear_screen();
+    
+    // Display a welcome message
+    print_string("Welcome to NOX OS!", 25, 10);
+    print_string("My first operating system", 22, 12);
+    
     // Halt the CPU
     while(1) {
         __asm__ volatile("hlt");
