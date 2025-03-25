@@ -4,14 +4,14 @@
 #define KEYBOARD_DATA_PORT 0x60
 #define KEYBOARD_STATUS_PORT 0x64
 
-// Add these definitions at the top
-#define KEY_UP      0x48
-#define KEY_DOWN    0x50
-#define KEY_LEFT    0x4B
-#define KEY_RIGHT   0x4D
-#define KEY_HOME    0x47
-#define KEY_END     0x4F
-#define KEY_DELETE  0x53
+// Use your non-ASCII definitions from keyboard.h instead:
+#define KEY_UP      0xF0
+#define KEY_DOWN    0xF1
+#define KEY_LEFT    0xF2
+#define KEY_RIGHT   0xF3
+#define KEY_HOME    0xF4
+#define KEY_END     0xF5
+#define KEY_DELETE  0xF6
 
 /* This table maps scan codes to ASCII characters */
 static unsigned char scancode_to_ascii[] = {
