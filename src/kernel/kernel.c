@@ -93,8 +93,7 @@ void kernel_main() {
     clear_screen();
     
     // Display a welcome message
-    print_string("Welcome to NOX OS!", 25, 10);
-    print_string("My first operating system", 22, 12);
+    print_string("Welcome to NOX OS!", 1, 1);
     
     // Set cursor to a position for keyboard input testing
     cursor_x = 0;
@@ -111,7 +110,8 @@ void kernel_main() {
             // Show the character itself if printable
             if (key >= 32 && key <= 126) {
                 print_char(key);
-                print_char(' ');
+                // Remove this line to eliminate spaces between characters
+                // print_char(' ');
             } 
             // Show special keys as hex values
             else {
@@ -127,8 +127,7 @@ void kernel_main() {
                 nibble = key & 0xF;
                 hex[3] = nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
                 
-                hex[4] = ' ';
-                hex[5] = '\0';
+                hex[4] = '\0';  // End the string without a space
                 
                 print(hex);
             }
