@@ -14,8 +14,10 @@ BUILD_DIR = build
 BOOT_SRC = $(SRC_DIR)/boot/boot.asm
 KERNEL_ENTRY = $(SRC_DIR)/kernel/entry.asm
 KERNEL_SRC = $(SRC_DIR)/kernel/kernel.c
+KEYBOARD_SRC = $(SRC_DIR)/kernel/keyboard.c
 BOOT_BIN = $(BUILD_DIR)/boot.bin
 KERNEL_OBJ = $(BUILD_DIR)/kernel.o
+KEYBOARD_OBJ = $(BUILD_DIR)/keyboard.o
 ENTRY_OBJ = $(BUILD_DIR)/entry.o
 KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 OS_IMAGE = $(BUILD_DIR)/nox-os.img
@@ -32,13 +34,15 @@ $(ENTRY_OBJ): $(KERNEL_ENTRY)
 $(KERNEL_OBJ): $(KERNEL_SRC)
 	$(CC) $(CFLAGS) $< -o $@
 
-$(KERNEL_BIN): $(ENTRY_OBJ) $(KERNEL_OBJ)
+$(KEYBOARD_OBJ): $(KEYBOARD_SRC)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_BIN): $(ENTRY_OBJ) $(KERNEL_OBJ) $(KEYBOARD_OBJ)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 $(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
 	dd if=/dev/zero of=$@ bs=512 count=2880
 	dd if=$(BOOT_BIN) of=$@ conv=notrunc
-	# Ensure the kernel is properly aligned at sector 2
 	dd if=$(KERNEL_BIN) of=$(OS_IMAGE) seek=1 conv=notrunc bs=512
 
 run: $(OS_IMAGE)
