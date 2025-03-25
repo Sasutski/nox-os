@@ -12,10 +12,17 @@ void outb(unsigned short port, unsigned char value);
 int strcmp(const char* str1, const char* str2);
 void execute_command(char* command);
 void scroll_screen();
+void init_vga_cursor();
 
 /* Current cursor position */
 int cursor_x = 0;
 int cursor_y = 0;
+
+/* History buffer */
+#define HISTORY_SIZE 5
+static char history[HISTORY_SIZE][256];
+static int history_count = 0;
+static int history_index = 0;
 
 /* Function to write a character to video memory */
 void putchar(char c, int x, int y) {
@@ -137,6 +144,13 @@ void outb(unsigned short port, unsigned char value) {
     __asm__ volatile("outb %0, %1" : : "a"(value), "dN"(port));
 }
 
+/* Read a byte from an I/O port */
+unsigned char inb(unsigned short port) {
+    unsigned char ret;
+    __asm__ volatile("inb %1, %0" : "=a"(ret) : "dN"(port));
+    return ret;
+}
+
 // Command comparison function
 int strcmp(const char* str1, const char* str2) {
     while(*str1 && (*str1 == *str2)) {
@@ -168,8 +182,18 @@ void execute_command(char* command) {
     }
 }
 
+/* Initialize VGA cursor */
+void init_vga_cursor() {
+    // Enable cursor, set scanline start/end
+    outb(0x3D4, 0x0A);
+    outb(0x3D5, (inb(0x3D5) & 0xC0) | 0);
+    outb(0x3D4, 0x0B);
+    outb(0x3D5, (inb(0x3D5) & 0xE0) | 0x0F);
+}
+
 /* Function to handle command input without arrow keys */
 void kernel_main() {
+    init_vga_cursor();
     clear_screen();
     print("Welcome to NOX OS!\n");
     print("Type 'help' for a list of commands\n\n");
@@ -177,41 +201,102 @@ void kernel_main() {
     
     char command_buffer[256];
     int buffer_pos = 0;
-    
-    // Initialize command buffer
     for (int i = 0; i < 256; i++)
         command_buffer[i] = '\0';
     
     while(1) {
         char key = get_key();
-        
         if (key != 0) {
             if (key == '\n') {
-                // Execute command
                 print_char('\n');
                 command_buffer[buffer_pos] = '\0';
-                execute_command(command_buffer);
                 
-                // Reset buffer for new command
+                // Store in history
+                if (buffer_pos > 0) {
+                    for(int i=0; i<256; i++)
+                        history[history_count % HISTORY_SIZE][i] = command_buffer[i];
+                    history_count++;
+                }
+                history_index = history_count;
+                
+                execute_command(command_buffer);
                 buffer_pos = 0;
                 for (int i = 0; i < 256; i++)
                     command_buffer[i] = '\0';
             }
             else if (key == '\b') {
-                // Handle backspace - simpler approach
                 if (buffer_pos > 0) {
                     buffer_pos--;
                     command_buffer[buffer_pos] = '\0';
-                    print_char('\b'); // Let print_char handle cursor movement
+                    print_char('\b');
+                }
+            }
+            else if (key == KEY_LEFT) {
+                if (buffer_pos > 0) {
+                    buffer_pos--;
+                    cursor_x--;
+                    update_cursor();
+                }
+            }
+            else if (key == KEY_RIGHT) {
+                if (command_buffer[buffer_pos] != '\0') {
+                    buffer_pos++;
+                    cursor_x++;
+                    update_cursor();
+                }
+            }
+            else if (key == KEY_HOME) {
+                // Go to start of line
+            }
+            else if (key == KEY_END) {
+                // Go to end of current text
+            }
+            else if (key == KEY_UP) {
+                // Show previous command in history
+                if (history_index > 0) {
+                    history_index--;
+                    // Clear current text
+                    // Minimal example: reprint line
+                    for(int i=0; i<buffer_pos; i++) print_char('\b');
+                    for(int i=0; i<256; i++) command_buffer[i] = '\0';
+                    
+                    // Copy from history
+                    for(int i=0; i<256; i++)
+                        command_buffer[i] = history[history_index % HISTORY_SIZE][i];
+                    
+                    // Print it
+                    buffer_pos = 0;
+                    while(command_buffer[buffer_pos] != '\0') {
+                        print_char(command_buffer[buffer_pos]);
+                        buffer_pos++;
+                    }
+                }
+            }
+            else if (key == KEY_DOWN) {
+                // Show next command if available
+                if (history_index < history_count) {
+                    history_index++;
+                    for(int i=0; i<buffer_pos; i++) print_char('\b');
+                    for(int i=0; i<256; i++) command_buffer[i] = '\0';
+                    
+                    if (history_index < history_count) {
+                        for(int i=0; i<256; i++)
+                            command_buffer[i] = history[history_index % HISTORY_SIZE][i];
+                    }
+                    
+                    buffer_pos = 0;
+                    while(command_buffer[buffer_pos] != '\0') {
+                        print_char(command_buffer[buffer_pos]);
+                        buffer_pos++;
+                    }
                 }
             }
             else if (key >= 32 && key <= 126) {
-                // Only append to the end - no complex insertion
-                if (buffer_pos < 255) { // Prevent buffer overflow
+                if (buffer_pos < 255) {
                     command_buffer[buffer_pos] = key;
                     buffer_pos++;
                     command_buffer[buffer_pos] = '\0';
-                    print_char(key); // Let print_char handle cursor movement
+                    print_char(key);
                 }
             }
         }

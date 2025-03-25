@@ -7,6 +7,12 @@
 
 /* Special key definitions */
 #define KEY_DELETE  0x53
+#define KEY_UP      0x48
+#define KEY_DOWN    0x50
+#define KEY_LEFT    0x4B
+#define KEY_RIGHT   0x4D
+#define KEY_HOME    0x47
+#define KEY_END     0x4F
 
 /* Function prototypes */
 char get_key();

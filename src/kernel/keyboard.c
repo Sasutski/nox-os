@@ -4,25 +4,15 @@
 #define KEYBOARD_DATA_PORT 0x60
 #define KEYBOARD_STATUS_PORT 0x64
 
-
-#define KEY_DELETE  0xF6
-
 /* This table maps scan codes to ASCII characters */
 static unsigned char scancode_to_ascii[] = {
     0, 0, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
     '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
     0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
     0, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0,
-    '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-
-/* Read a byte from an I/O port */
-unsigned char inb(unsigned short port) {
-    unsigned char value;
-    __asm__ volatile("inb %1, %0" : "=a"(value) : "dN"(port));
-    return value;
-}
 
 /* Get a key from the keyboard */
 char get_key() {
@@ -37,7 +27,13 @@ char get_key() {
             
             // Map extended scan codes to our defined values
             switch (scan_code) {
-                case 0x53: return KEY_DELETE;// Delete key
+                case 0x48: return KEY_UP;
+                case 0x50: return KEY_DOWN;
+                case 0x4B: return KEY_LEFT;
+                case 0x4D: return KEY_RIGHT;
+                case 0x47: return KEY_HOME;
+                case 0x4F: return KEY_END;
+                case 0x53: return KEY_DELETE; // Delete key
                 default: return 0;
             }
         }
