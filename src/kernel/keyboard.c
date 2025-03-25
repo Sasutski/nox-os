@@ -4,13 +4,7 @@
 #define KEYBOARD_DATA_PORT 0x60
 #define KEYBOARD_STATUS_PORT 0x64
 
-// Use your non-ASCII definitions from keyboard.h instead:
-#define KEY_UP      0xF0
-#define KEY_DOWN    0xF1
-#define KEY_LEFT    0xF2
-#define KEY_RIGHT   0xF3
-#define KEY_HOME    0xF4
-#define KEY_END     0xF5
+
 #define KEY_DELETE  0xF6
 
 /* This table maps scan codes to ASCII characters */
@@ -43,12 +37,6 @@ char get_key() {
             
             // Map extended scan codes to our defined values
             switch (scan_code) {
-                case 0x48: return KEY_UP;    // Up arrow
-                case 0x50: return KEY_DOWN;  // Down arrow
-                case 0x4B: return KEY_LEFT;  // Left arrow
-                case 0x4D: return KEY_RIGHT; // Right arrow
-                case 0x47: return KEY_HOME;  // Home key
-                case 0x4F: return KEY_END;   // End key
                 case 0x53: return KEY_DELETE;// Delete key
                 default: return 0;
             }

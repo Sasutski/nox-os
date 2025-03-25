@@ -9,13 +9,9 @@
 /* Function prototypes - declare these before using them */
 void update_cursor();
 void outb(unsigned short port, unsigned char value);
-void move_cursor_left();
-void move_cursor_right();
-void move_cursor_to_start();
-void move_cursor_to_end();
-void handle_special_key(char key, char* command_buffer, int* buffer_pos);
 int strcmp(const char* str1, const char* str2);
 void execute_command(char* command);
+void scroll_screen();
 
 /* Current cursor position */
 int cursor_x = 0;
@@ -83,8 +79,37 @@ void print_char(char c) {
         }
     }
     
+    // Check if we need to scroll the screen
+    if (cursor_y >= 25) {
+        scroll_screen();
+        cursor_y = 24; // Keep cursor at the last line
+    }
+    
     // Update the hardware cursor position
     update_cursor();
+}
+
+/* Scroll the screen up by one line */
+void scroll_screen() {
+    unsigned char *video_memory = (unsigned char*)VIDEO_MEMORY;
+    
+    // Move each line up one position
+    for (int y = 0; y < 24; y++) {
+        for (int x = 0; x < 80; x++) {
+            int src_offset = ((y + 1) * 80 + x) * 2;
+            int dest_offset = (y * 80 + x) * 2;
+            
+            video_memory[dest_offset] = video_memory[src_offset];
+            video_memory[dest_offset + 1] = video_memory[src_offset + 1];
+        }
+    }
+    
+    // Clear the last line
+    for (int x = 0; x < 80; x++) {
+        int offset = (24 * 80 + x) * 2;
+        video_memory[offset] = ' ';
+        video_memory[offset + 1] = COLOR;
+    }
 }
 
 /* Print a string at the current cursor position */
@@ -110,73 +135,6 @@ void update_cursor() {
 /* Write a byte to an I/O port */
 void outb(unsigned short port, unsigned char value) {
     __asm__ volatile("outb %0, %1" : : "a"(value), "dN"(port));
-}
-
-// Implement cursor movement functions
-void move_cursor_left() {
-    if (cursor_x > 0) {
-        cursor_x--;
-        update_cursor();
-    } else if (cursor_y > 15) { // Command area starts at line 15
-        cursor_y--;
-        cursor_x = 79;
-        update_cursor();
-    }
-}
-
-void move_cursor_right() {
-    // This needs to be aware of the current command length
-    if (cursor_x < 79) {
-        cursor_x++;
-        update_cursor();
-    } else {
-        cursor_x = 0;
-        cursor_y++;
-        update_cursor();
-    }
-}
-
-void move_cursor_to_start() {
-    // Move to start of current command line
-    cursor_x = 0;
-    update_cursor();
-}
-
-void move_cursor_to_end(int command_length) {
-    // Move to end of current command
-    cursor_x = command_length % 80;
-    cursor_y = 15 + (command_length / 80);
-    update_cursor();
-}
-
-// Special key handler for command editing
-void handle_special_key(char key, char* command_buffer, int* buffer_pos) {
-    switch(key) {
-        case KEY_LEFT:
-            if (*buffer_pos > 0) {
-                (*buffer_pos)--;
-                move_cursor_left();
-            }
-            break;
-            
-        case KEY_RIGHT:
-            if (command_buffer[*buffer_pos] != '\0') {
-                (*buffer_pos)++;
-                move_cursor_right();
-            }
-            break;
-            
-        case KEY_HOME:
-            *buffer_pos = 0;
-            move_cursor_to_start();
-            break;
-            
-        case KEY_END:
-            while (command_buffer[*buffer_pos] != '\0')
-                (*buffer_pos)++;
-            move_cursor_to_end(*buffer_pos);
-            break;
-    }
 }
 
 // Command comparison function
@@ -210,6 +168,7 @@ void execute_command(char* command) {
     }
 }
 
+/* Function to handle command input without arrow keys */
 void kernel_main() {
     clear_screen();
     print("Welcome to NOX OS!\n");
@@ -239,44 +198,21 @@ void kernel_main() {
                     command_buffer[i] = '\0';
             }
             else if (key == '\b') {
-                // Handle backspace
+                // Handle backspace - simpler approach
                 if (buffer_pos > 0) {
                     buffer_pos--;
-                    move_cursor_left();
-                    
-                    // Shift characters to the left
-                    int i = buffer_pos;
-                    while(command_buffer[i]) {
-                        command_buffer[i] = command_buffer[i+1];
-                        putchar(command_buffer[i] ? command_buffer[i] : ' ', cursor_x + (i - buffer_pos), cursor_y);
-                        i++;
-                    }
+                    command_buffer[buffer_pos] = '\0';
+                    print_char('\b'); // Let print_char handle cursor movement
                 }
             }
             else if (key >= 32 && key <= 126) {
-                // Insert character at current position
-                int i = buffer_pos;
-                while(command_buffer[i]) i++;
-                while(i > buffer_pos) {
-                    command_buffer[i] = command_buffer[i-1];
-                    i--;
+                // Only append to the end - no complex insertion
+                if (buffer_pos < 255) { // Prevent buffer overflow
+                    command_buffer[buffer_pos] = key;
+                    buffer_pos++;
+                    command_buffer[buffer_pos] = '\0';
+                    print_char(key); // Let print_char handle cursor movement
                 }
-                command_buffer[buffer_pos] = key;
-                
-                // Redraw the line from cursor position
-                i = buffer_pos;
-                while(command_buffer[i]) {
-                    putchar(command_buffer[i], cursor_x + (i - buffer_pos), cursor_y);
-                    i++;
-                }
-                
-                buffer_pos++;
-                move_cursor_right();
-            }
-            // Handle special keys (arrows, etc.)
-            else if (key == KEY_LEFT || key == KEY_RIGHT || 
-                     key == KEY_HOME || key == KEY_END) {
-                handle_special_key(key, command_buffer, &buffer_pos);
             }
         }
     }
