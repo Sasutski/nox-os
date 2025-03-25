@@ -9,6 +9,13 @@
 /* Function prototypes - declare these before using them */
 void update_cursor();
 void outb(unsigned short port, unsigned char value);
+void move_cursor_left();
+void move_cursor_right();
+void move_cursor_to_start();
+void move_cursor_to_end();
+void handle_special_key(char key, char* command_buffer, int* buffer_pos);
+int strcmp(const char* str1, const char* str2);
+void execute_command(char* command);
 
 /* Current cursor position */
 int cursor_x = 0;
@@ -105,50 +112,171 @@ void outb(unsigned short port, unsigned char value) {
     __asm__ volatile("outb %0, %1" : : "a"(value), "dN"(port));
 }
 
-void kernel_main() {
-    // Clear the screen first
-    clear_screen();
-    
-    // Display a welcome message
-    print("Welcome to NOX OS!");
-    
-    // Set cursor to a position for keyboard input testing
+// Implement cursor movement functions
+void move_cursor_left() {
+    if (cursor_x > 0) {
+        cursor_x--;
+        update_cursor();
+    } else if (cursor_y > 15) { // Command area starts at line 15
+        cursor_y--;
+        cursor_x = 79;
+        update_cursor();
+    }
+}
+
+void move_cursor_right() {
+    // This needs to be aware of the current command length
+    if (cursor_x < 79) {
+        cursor_x++;
+        update_cursor();
+    } else {
+        cursor_x = 0;
+        cursor_y++;
+        update_cursor();
+    }
+}
+
+void move_cursor_to_start() {
+    // Move to start of current command line
     cursor_x = 0;
-    cursor_y = 14;
+    update_cursor();
+}
+
+void move_cursor_to_end(int command_length) {
+    // Move to end of current command
+    cursor_x = command_length % 80;
+    cursor_y = 15 + (command_length / 80);
+    update_cursor();
+}
+
+// Special key handler for command editing
+void handle_special_key(char key, char* command_buffer, int* buffer_pos) {
+    switch(key) {
+        case KEY_LEFT:
+            if (*buffer_pos > 0) {
+                (*buffer_pos)--;
+                move_cursor_left();
+            }
+            break;
+            
+        case KEY_RIGHT:
+            if (command_buffer[*buffer_pos] != '\0') {
+                (*buffer_pos)++;
+                move_cursor_right();
+            }
+            break;
+            
+        case KEY_HOME:
+            *buffer_pos = 0;
+            move_cursor_to_start();
+            break;
+            
+        case KEY_END:
+            while (command_buffer[*buffer_pos] != '\0')
+                (*buffer_pos)++;
+            move_cursor_to_end(*buffer_pos);
+            break;
+    }
+}
+
+// Command comparison function
+int strcmp(const char* str1, const char* str2) {
+    while(*str1 && (*str1 == *str2)) {
+        str1++;
+        str2++;
+    }
+    return *(unsigned char*)str1 - *(unsigned char*)str2;
+}
+
+// Execute commands
+void execute_command(char* command) {
+    if (strcmp(command, "clear") == 0) {
+        clear_screen();
+        print("NOX OS> ");
+    }
+    else if (strcmp(command, "help") == 0) {
+        print("\nAvailable commands:\n");
+        print("  clear - Clear the screen\n");
+        print("  help  - Display this help message\n");
+        print("NOX OS> ");
+    }
+    else if (command[0] != '\0') {
+        print("\nUnknown command: ");
+        print(command);
+        print("\nNOX OS> ");
+    }
+    else {
+        print("\nNOX OS> ");
+    }
+}
+
+void kernel_main() {
+    clear_screen();
+    print("Welcome to NOX OS!\n");
+    print("Type 'help' for a list of commands\n\n");
+    print("NOX OS> ");
     
-    print("Keyboard test: Type any key (hex values shown)\n");
+    char command_buffer[256];
+    int buffer_pos = 0;
     
-    // Main keyboard testing loop
+    // Initialize command buffer
+    for (int i = 0; i < 256; i++)
+        command_buffer[i] = '\0';
+    
     while(1) {
         char key = get_key();
         
-        // If a key was pressed, display it
         if (key != 0) {
-            // Process backspace specially
-            if (key == '\b') {
-                print_char('\b');
+            if (key == '\n') {
+                // Execute command
+                print_char('\n');
+                command_buffer[buffer_pos] = '\0';
+                execute_command(command_buffer);
+                
+                // Reset buffer for new command
+                buffer_pos = 0;
+                for (int i = 0; i < 256; i++)
+                    command_buffer[i] = '\0';
             }
-            // Show printable characters as is
+            else if (key == '\b') {
+                // Handle backspace
+                if (buffer_pos > 0) {
+                    buffer_pos--;
+                    move_cursor_left();
+                    
+                    // Shift characters to the left
+                    int i = buffer_pos;
+                    while(command_buffer[i]) {
+                        command_buffer[i] = command_buffer[i+1];
+                        putchar(command_buffer[i] ? command_buffer[i] : ' ', cursor_x + (i - buffer_pos), cursor_y);
+                        i++;
+                    }
+                }
+            }
             else if (key >= 32 && key <= 126) {
-                print_char(key);
-            } 
-            // Show other special keys as hex values
-            else {
-                char hex[6];
-                hex[0] = '0';
-                hex[1] = 'x';
+                // Insert character at current position
+                int i = buffer_pos;
+                while(command_buffer[i]) i++;
+                while(i > buffer_pos) {
+                    command_buffer[i] = command_buffer[i-1];
+                    i--;
+                }
+                command_buffer[buffer_pos] = key;
                 
-                // Convert key value to hex
-                unsigned char nibble;
-                nibble = (key >> 4) & 0xF;
-                hex[2] = nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
+                // Redraw the line from cursor position
+                i = buffer_pos;
+                while(command_buffer[i]) {
+                    putchar(command_buffer[i], cursor_x + (i - buffer_pos), cursor_y);
+                    i++;
+                }
                 
-                nibble = key & 0xF;
-                hex[3] = nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
-                
-                hex[4] = '\0';  // End the string without a space
-                
-                print(hex);
+                buffer_pos++;
+                move_cursor_right();
+            }
+            // Handle special keys (arrows, etc.)
+            else if (key == KEY_LEFT || key == KEY_RIGHT || 
+                     key == KEY_HOME || key == KEY_END) {
+                handle_special_key(key, command_buffer, &buffer_pos);
             }
         }
     }
