@@ -216,8 +216,8 @@ void kernel_main() {
                     for(int i=0; i<256; i++)
                         history[history_count % HISTORY_SIZE][i] = command_buffer[i];
                     history_count++;
+                    history_index = history_count; // This stays the same
                 }
-                history_index = history_count;
                 
                 execute_command(command_buffer);
                 buffer_pos = 0;
@@ -255,18 +255,35 @@ void kernel_main() {
                 // Show previous command in history
                 if (history_index > 0) {
                     history_index--;
-                    // Clear current text
-                    // Minimal example: reprint line
-                    for(int i=0; i<buffer_pos; i++) print_char('\b');
-                    for(int i=0; i<256; i++) command_buffer[i] = '\0';
+                    
+                    // Clear entire current line first
+                    // Move cursor to beginning of line
+                    cursor_x = 0;
+                    update_cursor();
+                    
+                    // Clear the entire line
+                    for (int i = 0; i < 80; i++) {
+                        putchar(' ', i, cursor_y);
+                    }
+                    
+                    // Redraw the prompt
+                    print_string("NOX OS> ", 0, cursor_y);
+                    
+                    // Reset cursor position
+                    cursor_x = 8; // After the prompt (including the space)
+                    update_cursor();
+                    
+                    // Clear command buffer
+                    for (int i = 0; i < 256; i++) 
+                        command_buffer[i] = '\0';
                     
                     // Copy from history
-                    for(int i=0; i<256; i++)
+                    for (int i = 0; i < 256; i++)
                         command_buffer[i] = history[history_index % HISTORY_SIZE][i];
                     
                     // Print it
                     buffer_pos = 0;
-                    while(command_buffer[buffer_pos] != '\0') {
+                    while (command_buffer[buffer_pos] != '\0') {
                         print_char(command_buffer[buffer_pos]);
                         buffer_pos++;
                     }
@@ -276,16 +293,37 @@ void kernel_main() {
                 // Show next command if available
                 if (history_index < history_count) {
                     history_index++;
-                    for(int i=0; i<buffer_pos; i++) print_char('\b');
-                    for(int i=0; i<256; i++) command_buffer[i] = '\0';
+                    
+                    // Clear entire current line first
+                    // Move cursor to beginning of line
+                    cursor_x = 0;
+                    update_cursor();
+                    
+                    // Clear the entire line
+                    for (int i = 0; i < 80; i++) {
+                        putchar(' ', i, cursor_y);
+                    }
+                    
+                    // Redraw the prompt
+                    print_string("NOX OS> ", 0, cursor_y);
+                    
+                    // Reset cursor position
+                    cursor_x = 8; // After the prompt (including the space)
+                    update_cursor();
+                    
+                    // Clear command buffer
+                    for (int i = 0; i < 256; i++)
+                        command_buffer[i] = '\0';
                     
                     if (history_index < history_count) {
-                        for(int i=0; i<256; i++)
+                        // Copy from history
+                        for (int i = 0; i < 256; i++)
                             command_buffer[i] = history[history_index % HISTORY_SIZE][i];
                     }
                     
+                    // Print it (might be empty if we went past the end of history)
                     buffer_pos = 0;
-                    while(command_buffer[buffer_pos] != '\0') {
+                    while (command_buffer[buffer_pos] != '\0') {
                         print_char(command_buffer[buffer_pos]);
                         buffer_pos++;
                     }
@@ -293,10 +331,30 @@ void kernel_main() {
             }
             else if (key >= 32 && key <= 126) {
                 if (buffer_pos < 255) {
+                    // Make room for the new character by shifting everything right
+                    for (int i = 255; i > buffer_pos; i--) {
+                        command_buffer[i] = command_buffer[i-1];
+                    }
+                    
+                    // Insert the character
                     command_buffer[buffer_pos] = key;
                     buffer_pos++;
-                    command_buffer[buffer_pos] = '\0';
+                    
+                    // Redraw the line from current position
                     print_char(key);
+                    
+                    // Print the rest of the line
+                    int temp_pos = buffer_pos;
+                    while (command_buffer[temp_pos] != '\0') {
+                        print_char(command_buffer[temp_pos]);
+                        temp_pos++;
+                    }
+                    
+                    // Move cursor back to correct position
+                    for (int i = temp_pos; i > buffer_pos; i--) {
+                        cursor_x--;
+                        update_cursor();
+                    }
                 }
             }
         }
