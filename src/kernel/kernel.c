@@ -167,11 +167,12 @@ void execute_command(char* command) {
     }
     else if (strcmp(command, "quit") == 0) {
         print("\nShutting down...\n");
-        // Halt the CPU - this will stop execution in most emulators
-        __asm__ volatile("cli");  // Disable interrupts
-        __asm__ volatile("hlt");  // Halt the CPU
-        // If we get here, the halt didn't work
-        while(1) { /* Infinite loop as fallback */ }
+        // Tell QEMU to power off
+        __asm__ volatile("outw %%ax, %%dx" : : "a"((unsigned short)0x2000), "d"((unsigned short)0x604));
+        // Backup halt if that fails
+        __asm__ volatile("cli");
+        __asm__ volatile("hlt");
+        while(1) { }
     }
     else if (command[0] != '\0') {
         print("\nUnknown command: ");
