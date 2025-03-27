@@ -59,21 +59,13 @@ void print_char(char c) {
         cursor_x = 0;
         cursor_y++;
     } else if (c == '\b') {
-        // Handle backspace
-        // First check if we're in a user-editable area (below line 14 or at line 15+)
-        if (cursor_y > 14 || (cursor_y == 14 && cursor_x > 0)) {
-            if (cursor_x > 0) {
-                // Move cursor back one position
-                cursor_x--;
-                
-                // Erase the character (replace with space)
-                putchar(' ', cursor_x, cursor_y);
-            } else if (cursor_y > 15) {  // Only allow line wrapping within user input area
-                // If at beginning of line and not first input line, go to end of previous line
-                cursor_y--;
-                cursor_x = 79;  // Last position on previous line
-                putchar(' ', cursor_x, cursor_y);
-            }
+        // Handle backspace - we need to handle it more simply
+        if (cursor_x > 0) {
+            // Move cursor back one position
+            cursor_x--;
+            
+            // Erase the character (replace with space)
+            putchar(' ', cursor_x, cursor_y);
         }
     } else {
         putchar(c, cursor_x, cursor_y);
@@ -170,7 +162,16 @@ void execute_command(char* command) {
         print("\nAvailable commands:\n");
         print("  clear - Clear the screen\n");
         print("  help  - Display this help message\n");
+        print("  quit  - Shutdown the system\n");
         print("NOX OS> ");
+    }
+    else if (strcmp(command, "quit") == 0) {
+        print("\nShutting down...\n");
+        // Halt the CPU - this will stop execution in most emulators
+        __asm__ volatile("cli");  // Disable interrupts
+        __asm__ volatile("hlt");  // Halt the CPU
+        // If we get here, the halt didn't work
+        while(1) { /* Infinite loop as fallback */ }
     }
     else if (command[0] != '\0') {
         print("\nUnknown command: ");
@@ -209,14 +210,16 @@ void kernel_main() {
         if (key != 0) {
             if (key == '\n') {
                 print_char('\n');
-                command_buffer[buffer_pos] = '\0';
                 
-                // Store in history
-                if (buffer_pos > 0) {
+                // Don't truncate the command at the cursor position
+                // command_buffer[buffer_pos] = '\0'; <- This line is the problem
+                
+                // Store in history - we'll use the full command
+                if (buffer_pos > 0 || command_buffer[0] != '\0') {
                     for(int i=0; i<256; i++)
                         history[history_count % HISTORY_SIZE][i] = command_buffer[i];
                     history_count++;
-                    history_index = history_count; // This stays the same
+                    history_index = history_count;
                 }
                 
                 execute_command(command_buffer);
@@ -226,9 +229,38 @@ void kernel_main() {
             }
             else if (key == '\b') {
                 if (buffer_pos > 0) {
+                    // Remove the character at cursor position - 1
                     buffer_pos--;
-                    command_buffer[buffer_pos] = '\0';
-                    print_char('\b');
+                    
+                    // Shift all characters to the left
+                    for (int i = buffer_pos; i < 255; i++) {
+                        command_buffer[i] = command_buffer[i+1];
+                    }
+                    
+                    // Move cursor back visually
+                    cursor_x--;
+                    update_cursor();
+                    
+                    // Clear the rest of the line
+                    int current_x = cursor_x;
+                    for (int i = current_x; i < 80; i++) {
+                        putchar(' ', i, cursor_y);
+                    }
+                    
+                    // Redraw from current position
+                    int temp_pos = buffer_pos;
+                    cursor_x = current_x;
+                    update_cursor();
+                    
+                    while (command_buffer[temp_pos] != '\0') {
+                        putchar(command_buffer[temp_pos], cursor_x, cursor_y);
+                        temp_pos++;
+                        cursor_x++;
+                    }
+                    
+                    // Reset cursor to the correct position
+                    cursor_x = current_x;
+                    update_cursor();
                 }
             }
             else if (key == KEY_LEFT) {
@@ -274,6 +306,7 @@ void kernel_main() {
                     update_cursor();
                     
                     // Clear command buffer
+                    
                     for (int i = 0; i < 256; i++) 
                         command_buffer[i] = '\0';
                     
