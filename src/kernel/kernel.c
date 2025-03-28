@@ -1,5 +1,6 @@
 /* kernel.c - Main kernel entry point */
 #include "keyboard.h"
+#include "memory.h"  // Add this line
 
 /* Video memory address */
 #define VIDEO_MEMORY 0xB8000
@@ -13,6 +14,7 @@ int strcmp(const char* str1, const char* str2);
 void execute_command(char* command);
 void scroll_screen();
 void init_vga_cursor();
+void print_int(int num);  // Add this for the integer printing function
 
 /* Current cursor position */
 int cursor_x = 0;
@@ -160,10 +162,58 @@ void execute_command(char* command) {
     }
     else if (strcmp(command, "help") == 0) {
         print("\nAvailable commands:\n");
-        print("  clear - Clear the screen\n");
-        print("  help  - Display this help message\n");
-        print("  quit  - Shutdown the system\n");
+        print("  clear    - Clear the screen\n");
+        print("  help     - Display this help message\n");
+        print("  memory   - Display memory statistics\n");
+        print("  memcheck - Show detailed memory map\n");
+        print("  pagetest - Test page allocation system\n");
+        print("  quit     - Shutdown the system\n");
         print("NOX OS> ");
+    }
+    else if (strcmp(command, "memory") == 0) {
+        print_memory_stats();
+        print("\nNOX OS> ");
+    }
+    else if (strcmp(command, "memcheck") == 0) {
+        print_memory_stats();
+        print_memory_map();
+        print("\nNOX OS> ");
+    }
+    else if (strcmp(command, "pagetest") == 0) {
+        print("\nTesting page allocation system...\n");
+        
+        // Allocate single pages
+        print("Allocating 3 individual pages...\n");
+        void* page1 = page_alloc();
+        void* page2 = page_alloc();
+        void* page3 = page_alloc();
+        
+        print("Page 1: ");
+        print_int((unsigned int)page1);
+        print("\nPage 2: ");
+        print_int((unsigned int)page2);
+        print("\nPage 3: ");
+        print_int((unsigned int)page3);
+        print("\n");
+        
+        // Allocate multiple pages
+        print("\nAllocating 5 contiguous pages...\n");
+        void* multi_page = page_alloc_multiple(5);
+        print("Multi-page address: ");
+        print_int((unsigned int)multi_page);
+        print("\nPage count: ");
+        print_int(get_page_count(multi_page));
+        print("\n");
+        
+        // Free pages
+        print("\nFreeing allocated pages...\n");
+        page_free(page2);
+        page_free(multi_page);
+        
+        // Display memory map after allocations and frees
+        print_memory_map();
+        
+        print("\nNOX OS> ");
     }
     else if (strcmp(command, "quit") == 0) {
         print("\nShutting down...\n");
@@ -193,11 +243,51 @@ void init_vga_cursor() {
     outb(0x3D5, (inb(0x3D5) & 0xE0) | 0x0F);
 }
 
+/* Function to print an integer at the current cursor position */
+void print_int(int num) {
+    char buffer[16];
+    int i = 0;
+    int is_negative = 0;
+    
+    // Handle 0 as a special case
+    if (num == 0) {
+        print("0");
+        return;
+    }
+    
+    // Handle negative numbers
+    if (num < 0) {
+        is_negative = 1;
+        num = -num;
+    }
+    
+    // Convert integer to string (in reverse)
+    while (num > 0) {
+        buffer[i++] = '0' + (num % 10);
+        num /= 10;
+    }
+    
+    // Add negative sign if needed
+    if (is_negative) {
+        buffer[i++] = '-';
+    }
+    
+    // Print in correct order (reversing the buffer)
+    while (i > 0) {
+        print_char(buffer[--i]);
+    }
+}
+
 /* Function to handle command input without arrow keys */
 void kernel_main() {
     init_vga_cursor();
     clear_screen();
+    
     print("Welcome to NOX OS!\n");
+    
+    // Initialize memory system
+    init_memory();
+    
     print("Type 'help' for a list of commands\n\n");
     print("NOX OS> ");
     

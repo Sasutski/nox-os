@@ -15,9 +15,11 @@ BOOT_SRC = $(SRC_DIR)/boot/boot.asm
 KERNEL_ENTRY = $(SRC_DIR)/kernel/entry.asm
 KERNEL_SRC = $(SRC_DIR)/kernel/kernel.c
 KEYBOARD_SRC = $(SRC_DIR)/kernel/keyboard.c
+MEMORY_SRC = $(SRC_DIR)/kernel/memory.c
 BOOT_BIN = $(BUILD_DIR)/boot.bin
 KERNEL_OBJ = $(BUILD_DIR)/kernel.o
 KEYBOARD_OBJ = $(BUILD_DIR)/keyboard.o
+MEMORY_OBJ = $(BUILD_DIR)/memory.o
 ENTRY_OBJ = $(BUILD_DIR)/entry.o
 KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 OS_IMAGE = $(BUILD_DIR)/nox-os.img
@@ -37,7 +39,10 @@ $(KERNEL_OBJ): $(KERNEL_SRC)
 $(KEYBOARD_OBJ): $(KEYBOARD_SRC)
 	$(CC) $(CFLAGS) $< -o $@
 
-$(KERNEL_BIN): $(ENTRY_OBJ) $(KERNEL_OBJ) $(KEYBOARD_OBJ)
+$(MEMORY_OBJ): $(MEMORY_SRC)
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_BIN): $(ENTRY_OBJ) $(KERNEL_OBJ) $(KEYBOARD_OBJ) $(MEMORY_OBJ)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 $(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
