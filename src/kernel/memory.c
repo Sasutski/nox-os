@@ -4,6 +4,11 @@
    0 = free page, 1 = used page */
 static unsigned char mem_bitmap[BITMAP_SIZE];
 
+/* Memory region table */
+#define MAX_MEMORY_REGIONS 16
+static mem_region_t memory_regions[MAX_MEMORY_REGIONS];
+static int num_memory_regions = 0;
+
 /* Forward declaration of print function */
 void print(const char *str);
 
@@ -104,6 +109,150 @@ void init_memory() {
     print("Memory initialized: ");
     print_int((HEAP_INITIAL_SIZE / 1024));
     print(" KB available\n");
+}
+
+/* Initialize memory protection */
+void init_memory_protection() {
+    // Clear all memory regions
+    for (int i = 0; i < MAX_MEMORY_REGIONS; i++) {
+        memory_regions[i].start = 0;
+        memory_regions[i].end = 0;
+        memory_regions[i].perm = 0;
+    }
+    num_memory_regions = 0;
+    
+    print("Memory protection initialized\n");
+}
+
+/* Find memory region containing the given address */
+static int find_memory_region(void* addr) {
+    for (int i = 0; i < num_memory_regions; i++) {
+        if (addr >= memory_regions[i].start && addr < memory_regions[i].end) {
+            return i;
+        }
+    }
+    return -1; // Not found
+}
+
+/* Set memory permissions for a region */
+int set_memory_permissions(void* addr, size_t size, unsigned char perm) {
+    if (addr == 0 || size == 0) {
+        return MEM_PROT_INVALID_ADDR;
+    }
+    
+    // Check if we have space for a new region
+    if (num_memory_regions >= MAX_MEMORY_REGIONS) {
+        return MEM_PROT_INVALID_ADDR;
+    }
+    
+    // Calculate end address
+    void* end_addr = (void*)((unsigned int)addr + size);
+    
+    // Check if region is already defined
+    for (int i = 0; i < num_memory_regions; i++) {
+        // Check for overlapping regions
+        if ((addr >= memory_regions[i].start && addr < memory_regions[i].end) ||
+            (end_addr > memory_regions[i].start && end_addr <= memory_regions[i].end)) {
+            // Region already defined, update permissions
+            memory_regions[i].perm = perm;
+            return MEM_PROT_OK;
+        }
+    }
+    
+    // Add new region
+    memory_regions[num_memory_regions].start = addr;
+    memory_regions[num_memory_regions].end = end_addr;
+    memory_regions[num_memory_regions].perm = perm;
+    num_memory_regions++;
+    
+    return MEM_PROT_OK;
+}
+
+/* Check if a memory access is valid */
+int check_memory_access(void* addr, size_t size, unsigned char access_type) {
+    if (addr == 0) {
+        return MEM_PROT_INVALID_ADDR;
+    }
+    
+    // Calculate end address
+    void* end_addr = (void*)((unsigned int)addr + size);
+    
+    // Find the region containing this address
+    int region_idx = find_memory_region(addr);
+    if (region_idx == -1) {
+        return MEM_PROT_INVALID_ADDR;
+    }
+    
+    // Check if the entire access range is within this region
+    if (end_addr > memory_regions[region_idx].end) {
+        return MEM_PROT_OUT_OF_BOUNDS;
+    }
+    
+    // Check permissions
+    if ((memory_regions[region_idx].perm & access_type) != access_type) {
+        return MEM_PROT_PERM_DENIED;
+    }
+    
+    return MEM_PROT_OK;
+}
+
+/* Validate memory access - print error if invalid */
+int validate_memory_access(void* addr, size_t size, unsigned char access_type) {
+    int result = check_memory_access(addr, size, access_type);
+    
+    if (result != MEM_PROT_OK) {
+        print("Memory protection error: ");
+        
+        switch (result) {
+            case MEM_PROT_INVALID_ADDR:
+                print("Invalid address");
+                break;
+            case MEM_PROT_PERM_DENIED:
+                print("Permission denied");
+                break;
+            case MEM_PROT_OUT_OF_BOUNDS:
+                print("Access out of bounds");
+                break;
+        }
+        
+        print(" at address ");
+        print_int((unsigned int)addr);
+        print("\n");
+    }
+    
+    return result;
+}
+
+/* Print memory protection information */
+void print_memory_protection_info() {
+    print("\nMemory Protection Regions:\n");
+    
+    if (num_memory_regions == 0) {
+        print("  No protected regions defined\n");
+        return;
+    }
+    
+    for (int i = 0; i < num_memory_regions; i++) {
+        print("  Region ");
+        print_int(i);
+        print(": ");
+        print_int((unsigned int)memory_regions[i].start);
+        print(" - ");
+        print_int((unsigned int)memory_regions[i].end);
+        print(" (");
+        
+        // Print permissions
+        if (memory_regions[i].perm & MEM_PERM_READ) print("R");
+        else print("-");
+        
+        if (memory_regions[i].perm & MEM_PERM_WRITE) print("W");
+        else print("-");
+        
+        if (memory_regions[i].perm & MEM_PERM_EXEC) print("X");
+        else print("-");
+        
+        print(")\n");
+    }
 }
 
 /* Allocate memory (in bytes) - returns pointer to allocated memory */

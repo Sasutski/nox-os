@@ -168,6 +168,7 @@ void execute_command(char* command) {
         print("  memcheck - Show detailed memory map\n");
         print("  pagetest - Test page allocation system\n");
         print("  quit     - Shutdown the system\n");
+        print("  memprotect - Test memory protection system\n");
         print("NOX OS> ");
     }
     else if (strcmp(command, "memory") == 0) {
@@ -212,6 +213,74 @@ void execute_command(char* command) {
         
         // Display memory map after allocations and frees
         print_memory_map();
+        
+        print("\nNOX OS> ");
+    }
+    else if (strcmp(command, "memprotect") == 0) {
+        print("\nTesting memory protection...\n");
+        
+        // Allocate a test page
+        void* test_page = page_alloc();
+        print("Allocated test page at: ");
+        print_int((unsigned int)test_page);
+        print("\n");
+        
+        // Set different permissions for regions within the page
+        unsigned char* addr = (unsigned char*)test_page;
+        
+        // First 1KB: Read-only
+        set_memory_permissions(addr, 1024, MEM_PERM_READ);
+        print("Set first 1KB to read-only\n");
+        
+        // Next 1KB: Read-write
+        set_memory_permissions(addr + 1024, 1024, MEM_PERM_RW);
+        print("Set next 1KB to read-write\n");
+        
+        // Next 1KB: Read-execute
+        set_memory_permissions(addr + 2048, 1024, MEM_PERM_RX);
+        print("Set next 1KB to read-execute\n");
+        
+        // Last 1KB: No permissions
+        set_memory_permissions(addr + 3072, 1024, 0);
+        print("Set last 1KB to no-access\n");
+        
+        // Print region information
+        print_memory_protection_info();
+        
+        // Test reading from each region
+        print("\nTesting memory access:\n");
+        
+        print("Read from read-only region: ");
+        int result = validate_memory_access(addr, 4, MEM_PERM_READ);
+        if (result == MEM_PROT_OK) print("Allowed\n"); else print("Denied\n");
+        
+        print("Write to read-only region: ");
+        result = validate_memory_access(addr, 4, MEM_PERM_WRITE);
+        if (result == MEM_PROT_OK) print("Allowed\n"); else print("Denied\n");
+        
+        print("Execute from read-only region: ");
+        result = validate_memory_access(addr, 4, MEM_PERM_EXEC);
+        if (result == MEM_PROT_OK) print("Allowed\n"); else print("Denied\n");
+        
+        print("Read from read-write region: ");
+        result = validate_memory_access(addr + 1024, 4, MEM_PERM_READ);
+        if (result == MEM_PROT_OK) print("Allowed\n"); else print("Denied\n");
+        
+        print("Write to read-write region: ");
+        result = validate_memory_access(addr + 1024, 4, MEM_PERM_WRITE);
+        if (result == MEM_PROT_OK) print("Allowed\n"); else print("Denied\n");
+        
+        print("Read from no-access region: ");
+        result = validate_memory_access(addr + 3072, 4, MEM_PERM_READ);
+        if (result == MEM_PROT_OK) print("Allowed\n"); else print("Denied\n");
+        
+        // Test out-of-bounds access
+        print("Access beyond region boundary: ");
+        result = validate_memory_access(addr + 1020, 8, MEM_PERM_READ);
+        if (result == MEM_PROT_OK) print("Allowed\n"); else print("Denied\n");
+        
+        // Free the test page
+        page_free(test_page);
         
         print("\nNOX OS> ");
     }
@@ -287,6 +356,7 @@ void kernel_main() {
     
     // Initialize memory system
     init_memory();
+    init_memory_protection();  // Add this line
     
     print("Type 'help' for a list of commands\n\n");
     print("NOX OS> ");

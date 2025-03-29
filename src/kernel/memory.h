@@ -16,6 +16,27 @@ typedef unsigned int size_t;
 #define MEM_ERR_INVALID_ADDR 2
 #define MEM_ERR_DOUBLE_FREE 3
 
+/* Memory protection flags */
+#define MEM_PERM_READ    0x01
+#define MEM_PERM_WRITE   0x02
+#define MEM_PERM_EXEC    0x04
+#define MEM_PERM_RW      (MEM_PERM_READ | MEM_PERM_WRITE)
+#define MEM_PERM_RX      (MEM_PERM_READ | MEM_PERM_EXEC)
+#define MEM_PERM_RWX     (MEM_PERM_READ | MEM_PERM_WRITE | MEM_PERM_EXEC)
+
+/* Memory protection error codes */
+#define MEM_PROT_OK            0
+#define MEM_PROT_INVALID_ADDR  1
+#define MEM_PROT_PERM_DENIED   2
+#define MEM_PROT_OUT_OF_BOUNDS 3
+
+/* Memory region structure */
+typedef struct {
+    void*  start;       // Start address of region
+    void*  end;         // End address of region
+    unsigned char perm; // Permissions (read/write/exec)
+} mem_region_t;
+
 /* Function prototypes */
 void init_memory();
 void* kmalloc(size_t size);
@@ -30,5 +51,12 @@ void* page_alloc_multiple(int count);/* Allocate multiple contiguous pages */
 int page_free(void* addr);           /* Free a page or pages */
 int page_is_allocated(void* addr);   /* Check if a page is allocated */
 int get_page_count(void* addr);      /* Get number of pages for an allocation */
+
+/* Memory protection function prototypes */
+void init_memory_protection();
+int set_memory_permissions(void* addr, size_t size, unsigned char perm);
+int check_memory_access(void* addr, size_t size, unsigned char access_type);
+int validate_memory_access(void* addr, size_t size, unsigned char access_type);
+void print_memory_protection_info();
 
 #endif /* MEMORY_H */
