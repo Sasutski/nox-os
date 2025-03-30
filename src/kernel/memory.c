@@ -417,6 +417,72 @@ void print_memory_map() {
     }
 }
 
+////////////////////////////////////////////////////
+// Basic Memory Debugging Additions
+////////////////////////////////////////////////////
+
+static unsigned int total_allocations = 0;        // Track how many allocations have happened
+static unsigned int total_frees = 0;              // Track how many frees have happened
+static unsigned int alloc_magic = 0xDEADBEEF;     // Pattern to write at the start of each page
+static unsigned int free_magic  = 0xBEEFBEEF;     // Pattern to write when freeing
+
+// Write a known pattern to detect possible corruption
+static void write_pattern(void* addr, unsigned int pattern) {
+    unsigned int* ptr = (unsigned int*)addr;
+    *ptr = pattern;
+}
+
+// Check the pattern to see if memory might be corrupted
+static int check_pattern(void* addr, unsigned int expected) {
+    unsigned int* ptr = (unsigned int*)addr;
+    return (*ptr == expected);
+}
+
+/* Print extended memory debugging info */
+void print_memory_debug_info() {
+    print("\n--- Memory Debug Info ---\n");
+    print("Allocations: ");
+    print_int(total_allocations);
+    print("\nFrees: ");
+    print_int(total_frees);
+    print("\nPotentially Leaked Blocks: ");
+    print_int(total_allocations - total_frees);
+    print("\n");
+}
+
+// Modify page_alloc() to add a pattern at the start
+void* page_alloc_debug() {
+    void* base = page_alloc();
+    if (base) {
+        write_pattern(base, alloc_magic);
+        total_allocations++;
+    }
+    return base;
+}
+
+// Modify page_alloc_multiple() similarly
+void* page_alloc_multiple_debug(int count) {
+    void* base = page_alloc_multiple(count);
+    if (base) {
+        write_pattern(base, alloc_magic);
+        total_allocations++;
+    }
+    return base;
+}
+
+// Modify page_free() to check for corruption before freeing
+int page_free_debug(void* addr) {
+    if (addr != 0) {
+        if (!check_pattern(addr, alloc_magic)) {
+            print("WARNING: Memory corruption detected before free!\n");
+        }
+        // Overwrite with a different pattern
+        write_pattern(addr, free_magic);
+        total_frees++;
+    }
+    return page_free(addr);
+}
+
 /* Page allocation functions */
 
 /* Allocate a single page */

@@ -16,6 +16,12 @@ void scroll_screen();
 void init_vga_cursor();
 void print_int(int num);  // Add this for the integer printing function
 
+/* Debug function prototypes */
+void* page_alloc_debug();
+void* page_alloc_multiple_debug(int count);
+int page_free_debug(void* addr);
+void print_memory_debug_info();
+
 /* Current cursor position */
 int cursor_x = 0;
 int cursor_y = 0;
@@ -169,6 +175,7 @@ void execute_command(char* command) {
         print("  pagetest - Test page allocation system\n");
         print("  quit     - Shutdown the system\n");
         print("  memprotect - Test memory protection system\n");
+        print("  memdebug - Test memory debugging system\n");
         print("NOX OS> ");
     }
     else if (strcmp(command, "memory") == 0) {
@@ -281,6 +288,25 @@ void execute_command(char* command) {
         
         // Free the test page
         page_free(test_page);
+        
+        print("\nNOX OS> ");
+    }
+    else if (strcmp(command, "memdebug") == 0) {
+        print("\nTesting memory debugging...\n");
+        // Allocate a page
+        void* test_page = page_alloc_debug();
+        print("Allocated debug page at: ");
+        print_int((unsigned int)test_page);
+        print("\n");
+        
+        // Print debug info
+        print_memory_debug_info();
+
+        // Free the page
+        page_free_debug(test_page);
+        
+        // Print debug info again
+        print_memory_debug_info();
         
         print("\nNOX OS> ");
     }
