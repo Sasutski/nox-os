@@ -382,7 +382,7 @@ void kernel_main() {
     
     // Initialize memory system
     init_memory();
-    init_memory_protection();  // Add this line
+    init_memory_protection();
     
     print("Type 'help' for a list of commands\n\n");
     print("NOX OS> ");
@@ -393,64 +393,9 @@ void kernel_main() {
         command_buffer[i] = '\0';
     
     while(1) {
-        char key = get_key();
+        unsigned char key = get_key();
         if (key != 0) {
-            if (key == '\n') {
-                print_char('\n');
-                
-                // Don't truncate the command at the cursor position
-                // command_buffer[buffer_pos] = '\0'; <- This line is the problem
-                
-                // Store in history - we'll use the full command
-                if (buffer_pos > 0 || command_buffer[0] != '\0') {
-                    for(int i=0; i<256; i++)
-                        history[history_count % HISTORY_SIZE][i] = command_buffer[i];
-                    history_count++;
-                    history_index = history_count;
-                }
-                
-                execute_command(command_buffer);
-                buffer_pos = 0;
-                for (int i = 0; i < 256; i++)
-                    command_buffer[i] = '\0';
-            }
-            else if (key == '\b') {
-                if (buffer_pos > 0) {
-                    // Remove the character at cursor position - 1
-                    buffer_pos--;
-                    
-                    // Shift all characters to the left
-                    for (int i = buffer_pos; i < 255; i++) {
-                        command_buffer[i] = command_buffer[i+1];
-                    }
-                    
-                    // Move cursor back visually
-                    cursor_x--;
-                    update_cursor();
-                    
-                    // Clear the rest of the line
-                    int current_x = cursor_x;
-                    for (int i = current_x; i < 80; i++) {
-                        putchar(' ', i, cursor_y);
-                    }
-                    
-                    // Redraw from current position
-                    int temp_pos = buffer_pos;
-                    cursor_x = current_x;
-                    update_cursor();
-                    
-                    while (command_buffer[temp_pos] != '\0') {
-                        putchar(command_buffer[temp_pos], cursor_x, cursor_y);
-                        temp_pos++;
-                        cursor_x++;
-                    }
-                    
-                    // Reset cursor to the correct position
-                    cursor_x = current_x;
-                    update_cursor();
-                }
-            }
-            else if (key == KEY_LEFT) {
+            if (key == KEY_LEFT) {
                 if (buffer_pos > 0) {
                     buffer_pos--;
                     cursor_x--;
@@ -466,9 +411,17 @@ void kernel_main() {
             }
             else if (key == KEY_HOME) {
                 // Go to start of line
+                buffer_pos = 0;
+                cursor_x = 8; // After the prompt "NOX OS> "
+                update_cursor();
             }
             else if (key == KEY_END) {
                 // Go to end of current text
+                buffer_pos = 0;
+                while (command_buffer[buffer_pos] != '\0')
+                    buffer_pos++;
+                cursor_x = 8 + buffer_pos;
+                update_cursor();
             }
             else if (key == KEY_UP) {
                 // Show previous command in history
@@ -493,7 +446,6 @@ void kernel_main() {
                     update_cursor();
                     
                     // Clear command buffer
-                    
                     for (int i = 0; i < 256; i++) 
                         command_buffer[i] = '\0';
                     
@@ -549,6 +501,89 @@ void kernel_main() {
                     }
                 }
             }
+            else if (key == KEY_DELETE) {
+                // Delete the character at the current cursor position
+                if (command_buffer[buffer_pos] != '\0') {
+                    // Shift all characters after cursor to the left
+                    for (int i = buffer_pos; i < 255; i++) {
+                        command_buffer[i] = command_buffer[i+1];
+                    }
+                    
+                    // Clear the rest of the line
+                    int current_x = cursor_x;
+                    for (int i = current_x; i < 80; i++) {
+                        putchar(' ', i, cursor_y);
+                    }
+                    
+                    // Redraw from current position
+                    int temp_pos = buffer_pos;
+                    cursor_x = current_x;
+                    update_cursor();
+                    
+                    while (command_buffer[temp_pos] != '\0') {
+                        putchar(command_buffer[temp_pos], cursor_x, cursor_y);
+                        temp_pos++;
+                        cursor_x++;
+                    }
+                    
+                    // Reset cursor to the correct position
+                    cursor_x = current_x;
+                    update_cursor();
+                }
+            }
+            else if (key == '\n') {
+                print_char('\n');
+                
+                // Store in history - we'll use the full command
+                if (buffer_pos > 0 || command_buffer[0] != '\0') {
+                    for(int i=0; i<256; i++)
+                        history[history_count % HISTORY_SIZE][i] = command_buffer[i];
+                    history_count++;
+                    history_index = history_count;
+                }
+                
+                execute_command(command_buffer);
+                buffer_pos = 0;
+                for (int i = 0; i < 256; i++)
+                    command_buffer[i] = '\0';
+            }
+            else if (key == '\b') {
+                if (buffer_pos > 0) {
+                    // Remove the character at cursor position - 1
+                    buffer_pos--;
+                    
+                    // Shift all characters to the left
+                    for (int i = buffer_pos; i < 255; i++) {
+                        command_buffer[i] = command_buffer[i+1];
+                    }
+                    
+                    // Move cursor back visually
+                    cursor_x--;
+                    update_cursor();
+                    
+                    // Clear the rest of the line
+                    int current_x = cursor_x;
+                    for (int i = current_x; i < 80; i++) {
+                        putchar(' ', i, cursor_y);
+                    }
+                    
+                    // Redraw from current position
+                    int temp_pos = buffer_pos;
+                    cursor_x = current_x;
+                    update_cursor();
+                    
+                    while (command_buffer[temp_pos] != '\0') {
+                        putchar(command_buffer[temp_pos], cursor_x, cursor_y);
+                        temp_pos++;
+                        cursor_x++;
+                    }
+                    
+                    // Reset cursor to the correct position
+                    cursor_x = current_x;
+                    update_cursor();
+                }
+            }
+            // Only handle normal ASCII characters (32-126) for typing
             else if (key >= 32 && key <= 126) {
                 if (buffer_pos < 255) {
                     // Make room for the new character by shifting everything right

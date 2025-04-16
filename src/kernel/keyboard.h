@@ -5,17 +5,17 @@
 #define KEYBOARD_DATA_PORT    0x60
 #define KEYBOARD_STATUS_PORT  0x64
 
-/* Special key definitions */
-#define KEY_DELETE  0x53
-#define KEY_UP      0x48
-#define KEY_DOWN    0x50
-#define KEY_LEFT    0x4B
-#define KEY_RIGHT   0x4D
-#define KEY_HOME    0x47
-#define KEY_END     0x4F
+/* Special key definitions - use values above normal ASCII range */
+#define KEY_DELETE  0x7F    /* Above normal ASCII */
+#define KEY_UP      0x80    /* Above normal ASCII */
+#define KEY_DOWN    0x81    /* Above normal ASCII */
+#define KEY_LEFT    0x82    /* Above normal ASCII */
+#define KEY_RIGHT   0x83    /* Above normal ASCII */
+#define KEY_HOME    0x84    /* Above normal ASCII */
+#define KEY_END     0x85    /* Above normal ASCII */
 
 /* Function prototypes */
-char get_key();
+unsigned char get_key();
 unsigned char inb(unsigned short port);
 
 #endif /* KEYBOARD_H */

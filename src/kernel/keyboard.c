@@ -34,7 +34,7 @@ static unsigned char scancode_to_ascii_shifted[] = {
 };
 
 /* Get a key from the keyboard */
-char get_key() {
+unsigned char get_key() {
     if (inb(KEYBOARD_STATUS_PORT) & 0x01) {
         unsigned char scan_code = inb(KEYBOARD_DATA_PORT);
         
@@ -58,15 +58,15 @@ char get_key() {
             while (!(inb(KEYBOARD_STATUS_PORT) & 0x01));
             scan_code = inb(KEYBOARD_DATA_PORT);
             
-            // Map extended scan codes to our defined values
+            // Map extended scan codes to our defined values above ASCII range
             switch (scan_code) {
-                case 0x48: return KEY_UP;
-                case 0x50: return KEY_DOWN;
-                case 0x4B: return KEY_LEFT;
-                case 0x4D: return KEY_RIGHT;
-                case 0x47: return KEY_HOME;
-                case 0x4F: return KEY_END;
-                case 0x53: return KEY_DELETE; // Delete key
+                case 0x48: return KEY_UP;     // 0x80
+                case 0x50: return KEY_DOWN;   // 0x81
+                case 0x4B: return KEY_LEFT;   // 0x82
+                case 0x4D: return KEY_RIGHT;  // 0x83
+                case 0x47: return KEY_HOME;   // 0x84
+                case 0x4F: return KEY_END;    // 0x85
+                case 0x53: return KEY_DELETE; // 0x7F
                 default: return 0;
             }
         }
@@ -98,8 +98,8 @@ char get_key() {
 }
 
 // Wait until a key is pressed and return its ASCII value
-char wait_for_key() {
-    char c = 0;
+unsigned char wait_for_key() {
+    unsigned char c = 0;
     while (c == 0) {
         c = get_key();
     }
